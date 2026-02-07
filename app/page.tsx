@@ -1,65 +1,219 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft } from "lucide-react";
+import Layout from "./components/Layout";
+import ProgramSelector from "./components/ProgramSelector";
+import ProgramCustomizer from "./components/ProgramCustomizer";
+import ExercisePlayer from "./components/ExercisePlayer";
+import { PROGRAMS } from "./data/programs";
+import { Program, BreathingPattern, ExerciseEquipment } from "./types";
+import { cn } from "@/lib/utils";
+
+const DEFAULT_BREATHING: BreathingPattern = {
+  inhale: 2,
+  holdIn: 1,
+  exhale: 2,
+  holdOut: 2,
+};
 
 export default function Home() {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [selectedPrograms, setSelectedPrograms] = useState<Program[]>([]);
+  const [isCustomizing, setIsCustomizing] = useState(false);
+  const [activeProgram, setActiveProgram] = useState<Program | null>(null); // Program actually being played
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [breathingPattern, setBreathingPattern] = useState<BreathingPattern>(
+    DEFAULT_BREATHING
+  );
+
+  // Lifted state for persistence
+  const [location, setLocation] = useState<"home" | "gym">("home");
+  const [selectedEquipment, setSelectedEquipment] = useState<Set<ExerciseEquipment | string>>(new Set(["bodyweight", "dumbbell", "bench"]));
+
+  // Load state on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem("flowlift_state");
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        if (parsed.selectedPrograms) {
+          setSelectedPrograms(parsed.selectedPrograms);
+        } else if (parsed.selectedProgram) {
+          setSelectedPrograms([parsed.selectedProgram]);
+        }
+
+        if (parsed.isCustomizing) setIsCustomizing(parsed.isCustomizing);
+
+        if (parsed.activeProgram) setActiveProgram(parsed.activeProgram);
+        if (parsed.currentExerciseIndex !== undefined) setCurrentExerciseIndex(parsed.currentExerciseIndex);
+        if (parsed.breathingPattern) setBreathingPattern(parsed.breathingPattern);
+
+        if (parsed.location) setLocation(parsed.location);
+        if (parsed.selectedEquipment) setSelectedEquipment(new Set(parsed.selectedEquipment));
+      } catch (e) {
+        console.error("Failed to load state", e);
+      }
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // Save state on change
+  useEffect(() => {
+    if (!isLoaded) return; // Don't save initial null states overwriting storage
+    const stateToSave = {
+      selectedPrograms,
+      isCustomizing,
+      activeProgram,
+      currentExerciseIndex,
+      breathingPattern,
+      location,
+      selectedEquipment: Array.from(selectedEquipment)
+    };
+    localStorage.setItem("flowlift_state", JSON.stringify(stateToSave));
+  }, [selectedPrograms, isCustomizing, activeProgram, currentExerciseIndex, breathingPattern, location, selectedEquipment, isLoaded]);
+
+  const handleProgramToggle = (program: Program) => {
+    setSelectedPrograms(prev => {
+      const exists = prev.find(p => p.id === program.id);
+      if (exists) {
+        return prev.filter(p => p.id !== program.id);
+      } else {
+        return [...prev, program];
+      }
+    });
+  };
+
+  const handleStartCustomization = () => {
+    setIsCustomizing(true);
+  };
+
+  const handleStartWorkout = (customizedProgram: Program) => {
+    setActiveProgram(customizedProgram);
+    setIsCustomizing(false);
+    setCurrentExerciseIndex(0);
+  };
+
+  const handleNextExercise = () => {
+    if (activeProgram && currentExerciseIndex < activeProgram.exercises.length - 1) {
+      setCurrentExerciseIndex(currentExerciseIndex + 1);
+    }
+  };
+
+  const handlePrevExercise = () => {
+    if (currentExerciseIndex > 0) {
+      setCurrentExerciseIndex(currentExerciseIndex - 1);
+    }
+  };
+
+  const handleBackToMenu = () => {
+    setIsCustomizing(false);
+    // Optional: Keep selection or clear? Let's keep selection so they can edit.
+  };
+
+  const handleBackToCustomization = () => {
+    setActiveProgram(null);
+    setIsCustomizing(true);
+  }
+
+  const handleCancelCustomization = () => {
+    setIsCustomizing(false);
+  }
+
+  if (!isLoaded) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <Layout>
+      <div className="flex justify-center items-center mb-8">
+        <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-linear-to-r from-blue-400 to-purple-500">
+          FlowLift
+        </h1>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {!isCustomizing && !activeProgram ? (
+          <motion.div
+            key="selector"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            <ProgramSelector
+              programs={PROGRAMS}
+              selectedPrograms={selectedPrograms}
+              onToggle={handleProgramToggle}
+              onNext={handleStartCustomization}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </motion.div>
+        ) : isCustomizing && !activeProgram ? (
+          <motion.div
+            key="customizer"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
           >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <ProgramCustomizer
+              programs={selectedPrograms}
+              breathingPattern={breathingPattern}
+              onBreathingChange={setBreathingPattern}
+              onStart={handleStartWorkout}
+              onCancel={handleCancelCustomization}
+              location={location}
+              setLocation={setLocation}
+              selectedEquipment={selectedEquipment}
+              setSelectedEquipment={setSelectedEquipment}
+            />
+          </motion.div>
+        ) : activeProgram ? (
+          <motion.div
+            key="player"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="w-full"
+          >
+            <button
+              onClick={handleBackToCustomization}
+              className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
+            >
+              <ArrowLeft size={20} />
+              กลับไปหน้าปรับแต่ง
+            </button>
+            <ExercisePlayer
+              exercise={activeProgram.exercises[currentExerciseIndex]}
+              breathingPattern={breathingPattern}
+              onNext={handleNextExercise}
+              onPrev={handlePrevExercise}
+              isFirst={currentExerciseIndex === 0}
+              isLast={currentExerciseIndex === activeProgram.exercises.length - 1}
+              currExerciseIdx={currentExerciseIndex}
+              totalExercises={activeProgram.exercises.length}
+            />
+
+            {/* Progress Bar */}
+            <div className="mt-8 flex justify-center gap-2">
+              {activeProgram.exercises.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "h-2 rounded-full transition-all duration-300",
+                    idx === currentExerciseIndex ? "w-8 bg-blue-500" : "w-2 bg-gray-700"
+                  )}
+                />
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </Layout >
   );
 }
