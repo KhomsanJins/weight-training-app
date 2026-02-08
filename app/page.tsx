@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Wind, X, Trophy, Home as HomeIcon, RotateCcw } from "lucide-react";
 import Layout from "./components/Layout";
 import ProgramSelector from "./components/ProgramSelector";
 import ProgramCustomizer from "./components/ProgramCustomizer";
 import ExercisePlayer from "./components/ExercisePlayer";
+import BreathingSettings from "./components/BreathingSettings";
 import { PROGRAMS } from "./data/programs";
-import { Program, BreathingPattern, ExerciseEquipment } from "./types";
+import { Program, BreathingPattern, ExerciseEquipment, WorkoutMode } from "./types";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_BREATHING: BreathingPattern = {
@@ -23,6 +24,9 @@ export default function Home() {
   const [selectedPrograms, setSelectedPrograms] = useState<Program[]>([]);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [activeProgram, setActiveProgram] = useState<Program | null>(null); // Program actually being played
+  const [isWorkoutFinished, setIsWorkoutFinished] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeMode, setActiveMode] = useState<WorkoutMode>("timer");
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [breathingPattern, setBreathingPattern] = useState<BreathingPattern>(
     DEFAULT_BREATHING
@@ -47,6 +51,7 @@ export default function Home() {
         if (parsed.isCustomizing) setIsCustomizing(parsed.isCustomizing);
 
         if (parsed.activeProgram) setActiveProgram(parsed.activeProgram);
+        if (parsed.activeMode) setActiveMode(parsed.activeMode);
         if (parsed.currentExerciseIndex !== undefined) setCurrentExerciseIndex(parsed.currentExerciseIndex);
         if (parsed.breathingPattern) setBreathingPattern(parsed.breathingPattern);
 
@@ -66,13 +71,14 @@ export default function Home() {
       selectedPrograms,
       isCustomizing,
       activeProgram,
+      activeMode,
       currentExerciseIndex,
       breathingPattern,
       location,
       selectedEquipment: Array.from(selectedEquipment)
     };
     localStorage.setItem("flowlift_state", JSON.stringify(stateToSave));
-  }, [selectedPrograms, isCustomizing, activeProgram, currentExerciseIndex, breathingPattern, location, selectedEquipment, isLoaded]);
+  }, [selectedPrograms, isCustomizing, activeProgram, activeMode, currentExerciseIndex, breathingPattern, location, selectedEquipment, isLoaded]);
 
   const handleProgramToggle = (program: Program) => {
     setSelectedPrograms(prev => {
@@ -89,9 +95,25 @@ export default function Home() {
     setIsCustomizing(true);
   };
 
-  const handleStartWorkout = (customizedProgram: Program) => {
+  const handleStartWorkout = (customizedProgram: Program, mode: WorkoutMode) => {
     setActiveProgram(customizedProgram);
+    setActiveMode(mode);
     setIsCustomizing(false);
+    setCurrentExerciseIndex(0);
+  };
+
+  const handleFinishWorkout = () => {
+    setIsWorkoutFinished(true);
+  };
+
+  const handleExitWorkout = () => {
+    setIsWorkoutFinished(false);
+    setActiveProgram(null);
+    setCurrentExerciseIndex(0);
+  };
+
+  const handleRestartWorkout = () => {
+    setIsWorkoutFinished(false);
     setCurrentExerciseIndex(0);
   };
 
@@ -133,14 +155,47 @@ export default function Home() {
 
   return (
     <Layout>
-      <div className="flex justify-center items-center mb-8">
+      <div className="flex justify-center items-center py-8">
         <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-linear-to-r from-blue-400 to-purple-500">
           FlowLift
         </h1>
       </div>
 
       <AnimatePresence mode="wait">
-        {!isCustomizing && !activeProgram ? (
+        {isWorkoutFinished && activeProgram ? (
+          <motion.div
+            key="finished"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="flex flex-col items-center justify-center py-12 px-4 text-center max-w-md mx-auto"
+          >
+            <div className="w-24 h-24 bg-yellow-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(234,179,8,0.5)]">
+              <Trophy size={48} className="text-black" />
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-2">ยินดีด้วย!</h2>
+            <p className="text-gray-400 mb-8">
+              คุณทำโปรแกรม <span className="text-white font-bold">"{activeProgram.name}"</span> สำเร็จแล้ว
+            </p>
+
+            <div className="space-y-3 w-full">
+              <button
+                onClick={handleExitWorkout}
+                className="w-full py-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold transition-all flex items-center justify-center gap-2"
+              >
+                <HomeIcon size={20} />
+                กลับหน้าหลัก
+              </button>
+              <button
+                onClick={handleRestartWorkout}
+                className="w-full py-4 rounded-xl border border-gray-700 hover:bg-gray-800 text-gray-400 hover:text-white font-bold transition-all flex items-center justify-center gap-2"
+              >
+                <RotateCcw size={20} />
+                เริ่มใหม่
+              </button>
+            </div>
+          </motion.div>
+        ) : !isCustomizing && !activeProgram ? (
           <motion.div
             key="selector"
             initial={{ opacity: 0, y: 20 }}
@@ -179,24 +234,63 @@ export default function Home() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="w-full"
+            className="w-full p-6"
           >
-            <button
-              onClick={handleBackToCustomization}
-              className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
-            >
-              <ArrowLeft size={20} />
-              กลับไปหน้าปรับแต่ง
-            </button>
+            <div className="flex justify-between items-center mb-6">
+              <button
+                onClick={handleBackToCustomization}
+                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+              >
+                <ArrowLeft size={20} />
+                กลับไปหน้าปรับแต่ง
+              </button>
+
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all bg-gray-800/50 text-gray-300 hover:text-white hover:bg-gray-700/50"
+              >
+                <Wind size={16} />
+                <span>ตั้งค่าหายใจ</span>
+              </button>
+            </div>
+
+            {/* Settings Modal */}
+            <AnimatePresence>
+              {showSettings && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                >
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md relative">
+                    <button
+                      onClick={() => setShowSettings(false)}
+                      className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                    >
+                      <X size={24} />
+                    </button>
+                    <div className="mt-2">
+                      <BreathingSettings
+                        pattern={breathingPattern}
+                        onChange={setBreathingPattern}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <ExercisePlayer
               exercise={activeProgram.exercises[currentExerciseIndex]}
               breathingPattern={breathingPattern}
               onNext={handleNextExercise}
               onPrev={handlePrevExercise}
+              onFinish={handleFinishWorkout}
               isFirst={currentExerciseIndex === 0}
               isLast={currentExerciseIndex === activeProgram.exercises.length - 1}
               currExerciseIdx={currentExerciseIndex}
               totalExercises={activeProgram.exercises.length}
+              mode={activeMode}
             />
 
             {/* Progress Bar */}

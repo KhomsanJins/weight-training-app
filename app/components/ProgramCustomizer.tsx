@@ -2,16 +2,15 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Exercise, Program, BreathingPattern, ExerciseEquipment } from "../types";
+import { Exercise, Program, BreathingPattern, ExerciseEquipment, WorkoutMode } from "../types";
 import { Check, Plus, Minus, Play, CheckCircle2, Circle, Clock, Wind, ArrowLeft, Dumbbell, Home, Building2, User, Weight, Armchair, Settings, Cable, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
-import BreathingSettings from "./BreathingSettings";
 
 interface ProgramCustomizerProps {
     programs: Program[];
     breathingPattern: BreathingPattern;
     onBreathingChange: (pattern: BreathingPattern) => void;
-    onStart: (program: Program) => void;
+    onStart: (program: Program, mode: WorkoutMode) => void;
     onCancel: () => void;
     location: "home" | "gym";
     setLocation: (loc: "home" | "gym") => void;
@@ -34,14 +33,6 @@ const getProgramBadgeColor = (id: string) => {
         case "lower": return "bg-green-500 text-white";
         default: return "bg-gray-600 text-white";
     }
-    switch (id) {
-        case "push": return "bg-blue-500 text-white";
-        case "pull": return "bg-purple-500 text-white";
-        case "legs": return "bg-orange-500 text-white";
-        case "upper": return "bg-yellow-500 text-black";
-        case "lower": return "bg-green-500 text-white";
-        default: return "bg-gray-600 text-white";
-    }
 };
 
 interface ExerciseCardProps {
@@ -54,10 +45,7 @@ interface ExerciseCardProps {
 
 const ExerciseCard = ({ exercise, isSelected, selectionIndex, toggleSelection, updateExercise }: ExerciseCardProps) => {
     return (
-        <motion.div
-            layout
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+        <div
             className={cn(
                 "rounded-xl border transition-all relative group overflow-hidden",
                 isSelected
@@ -169,7 +157,7 @@ const ExerciseCard = ({ exercise, isSelected, selectionIndex, toggleSelection, u
                     </div>
                 </div>
             )}
-        </motion.div>
+        </div>
     );
 };
 
@@ -184,12 +172,10 @@ export default function ProgramCustomizer({
     selectedEquipment,
     setSelectedEquipment,
 }: ProgramCustomizerProps) {
-    const [activeTab, setActiveTab] = useState<"exercises" | "breathing">("exercises");
     const [exercises, setExercises] = useState<ExtendedExercise[]>([]);
     const [selectedOrderedIds, setSelectedOrderedIds] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
-
-    // Filtering State (Lifted to props)
+    const [mode, setMode] = useState<WorkoutMode>("timer");
 
     // Initialize exercises and default selection
     useEffect(() => {
@@ -301,7 +287,7 @@ export default function ProgramCustomizer({
             description: "Custom Mixed Program",
             exercises: selectedExercises,
         };
-        onStart(customizedProgram);
+        onStart(customizedProgram, mode);
     };
 
     // Calculate Total Duration
@@ -333,140 +319,116 @@ export default function ProgramCustomizer({
                     <ArrowLeft size={20} />
                     <span className="font-bold">กลับ</span>
                 </button>
-
-                <div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setActiveTab("exercises")}
-                            className={cn("px-4 py-2 rounded-lg text-sm font-bold transition-all", activeTab === "exercises" ? "bg-white text-black" : "text-gray-400 hover:text-white")}
-                        >
-                            ปรับท่า ({effectiveSelectedCount})
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("breathing")}
-                            className={cn("px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2", activeTab === "breathing" ? "bg-white text-black" : "text-gray-400 hover:text-white")}
-                        >
-                            <Wind size={16} />
-                            ตั้งค่าหายใจ
-                        </button>
-                    </div>
-                </div>
             </div>
 
             <div className="p-4 space-y-4">
-                {activeTab === "exercises" ? (
-                    <div className="space-y-6">
-                        {/* Location & Equipment Filters */}
-                        <div className="bg-gray-900/40 backdrop-blur-md p-5 rounded-3xl border border-white/10 shadow-2xl">
+                <div className="space-y-6">
+                    {/* Location & Equipment Filters */}
+                    <div className="bg-gray-900/40 backdrop-blur-md p-5 rounded-3xl border border-white/10 shadow-2xl">
 
-                            <div className="flex items-center gap-2 mb-4 text-sm text-gray-400 font-medium px-1">
-                                <span className="uppercase tracking-wider text-[10px] font-bold">สถานที่ & อุปกรณ์</span>
-                            </div>
-
-                            {/* Location Switch */}
-                            <div className="flex bg-black/40 border border-white/5 rounded-2xl p-1 mb-5 relative overflow-hidden">
-                                <button
-                                    onClick={() => setLocation("home")}
-                                    className={cn(
-                                        "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all text-sm font-bold relative z-10",
-                                        location === "home"
-                                            ? "bg-linear-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-green-500/20"
-                                            : "text-gray-400 hover:text-white hover:bg-white/5"
-                                    )}
-                                >
-                                    <Home size={16} />
-                                    <span>ที่บ้าน (Home)</span>
-                                </button>
-                                <button
-                                    onClick={() => setLocation("gym")}
-                                    className={cn(
-                                        "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all text-sm font-bold relative z-10",
-                                        location === "gym"
-                                            ? "bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20"
-                                            : "text-gray-400 hover:text-white hover:bg-white/5"
-                                    )}
-                                >
-                                    <Building2 size={16} />
-                                    <span>ยิม (Gym)</span>
-                                </button>
-
-                            </div>
-
-                            {/* Equipment Checkboxes */}
-                            <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide mask-linear-fade">
-                                {[
-                                    { id: "bodyweight", label: "น้ำหนักตัว", icon: <User size={14} /> },
-                                    { id: "dumbbell", label: "ดัมเบล", icon: <Dumbbell size={14} /> },
-                                    { id: "barbell", label: "บาร์เบล", icon: <Weight size={14} /> },
-                                    { id: "bench", label: "ม้านั่ง", icon: <Armchair size={14} /> },
-                                    { id: "machine", label: "เครื่อง", icon: <Settings size={14} /> },
-                                    { id: "cable", label: "เคเบิล", icon: <Cable size={14} /> }
-                                ].map((item) => {
-                                    const isSelected = selectedEquipment.has(item.id as ExerciseEquipment);
-                                    return (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => toggleEquipment(item.id as ExerciseEquipment)}
-                                            className={cn(
-                                                "shrink-0 flex items-center gap-2 p-1 rounded-xl text-xs font-bold border transition-all duration-300 relative overflow-hidden group text-left",
-                                                isSelected
-                                                    ? "bg-white border-white text-black shadow-lg shadow-white/20 scale-[0.98]"
-                                                    : "bg-gray-900/40 border-white/5 text-gray-500 hover:bg-gray-800/60 hover:border-white/10 hover:text-gray-300"
-                                            )}
-                                        >
-                                            <div className={cn(
-                                                "p-1.5 rounded-md transition-colors",
-                                                isSelected ? "bg-black/5 text-black" : "bg-black/40 text-gray-600 group-hover:text-gray-400"
-                                            )}>
-                                                {item.icon}
-                                            </div>
-                                            <span className="truncate">{item.label}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                        <div className="flex items-center gap-2 mb-4 text-sm text-gray-400 font-medium px-1">
+                            <span className="uppercase tracking-wider text-[10px] font-bold">สถานที่ & อุปกรณ์</span>
                         </div>
 
-                        {/* Search Bar */}
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="ค้นหาท่าออกกำลังกาย..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-gray-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                            />
+                        {/* Location Switch */}
+                        <div className="flex bg-black/40 border border-white/5 rounded-2xl p-1 mb-5 relative overflow-hidden">
+                            <button
+                                onClick={() => setLocation("home")}
+                                className={cn(
+                                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all text-sm font-bold relative z-10",
+                                    location === "home"
+                                        ? "bg-linear-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-green-500/20"
+                                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                                )}
+                            >
+                                <Home size={16} />
+                                <span>ที่บ้าน (Home)</span>
+                            </button>
+                            <button
+                                onClick={() => setLocation("gym")}
+                                className={cn(
+                                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all text-sm font-bold relative z-10",
+                                    location === "gym"
+                                        ? "bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20"
+                                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                                )}
+                            >
+                                <Building2 size={16} />
+                                <span>ยิม (Gym)</span>
+                            </button>
+
                         </div>
 
-                        {/* List */}
-                        <div className="space-y-4">
-                            {filteredExercises.length === 0 ? (
-                                <div className="text-center py-8 text-gray-500">
-                                    ไม่มีท่าที่ใช้อุปกรณ์ที่เลือกครับ
-                                </div>
-                            ) : (
-                                filteredExercises.map((exercise) => {
-                                    const selectionIndex = selectedOrderedIds.indexOf(exercise.id);
-                                    const isSelected = selectionIndex !== -1;
-                                    return (
-                                        <ExerciseCard
-                                            key={exercise.id}
-                                            exercise={exercise}
-                                            isSelected={isSelected}
-                                            selectionIndex={selectionIndex}
-                                            toggleSelection={toggleSelection}
-                                            updateExercise={updateExercise}
-                                        />
-                                    )
-                                })
-                            )}
+                        {/* Equipment Checkboxes */}
+                        <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide mask-linear-fade">
+                            {[
+                                { id: "bodyweight", label: "น้ำหนักตัว", icon: <User size={14} /> },
+                                { id: "dumbbell", label: "ดัมเบล", icon: <Dumbbell size={14} /> },
+                                { id: "barbell", label: "บาร์เบล", icon: <Weight size={14} /> },
+                                { id: "bench", label: "ม้านั่ง", icon: <Armchair size={14} /> },
+                                { id: "machine", label: "เครื่อง", icon: <Settings size={14} /> },
+                                { id: "cable", label: "เคเบิล", icon: <Cable size={14} /> }
+                            ].map((item) => {
+                                const isSelected = selectedEquipment.has(item.id as ExerciseEquipment);
+                                return (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => toggleEquipment(item.id as ExerciseEquipment)}
+                                        className={cn(
+                                            "shrink-0 flex items-center gap-2 p-1 rounded-xl text-xs font-bold border transition-all duration-300 relative overflow-hidden group text-left",
+                                            isSelected
+                                                ? "bg-white border-white text-black shadow-lg shadow-white/20 scale-[0.98]"
+                                                : "bg-gray-900/40 border-white/5 text-gray-500 hover:bg-gray-800/60 hover:border-white/10 hover:text-gray-300"
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            "p-1.5 rounded-md transition-colors",
+                                            isSelected ? "bg-black/5 text-black" : "bg-black/40 text-gray-600 group-hover:text-gray-400"
+                                        )}>
+                                            {item.icon}
+                                        </div>
+                                        <span className="truncate">{item.label}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
-                ) : (
-                    <div className="py-4">
-                        <BreathingSettings pattern={breathingPattern} onChange={onBreathingChange} />
+
+                    {/* Search Bar */}
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="ค้นหาท่าออกกำลังกาย..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-gray-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                        />
                     </div>
-                )}
+
+                    {/* List */}
+                    <div className="space-y-4">
+                        {filteredExercises.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">
+                                ไม่มีท่าที่ใช้อุปกรณ์ที่เลือกครับ
+                            </div>
+                        ) : (
+                            filteredExercises.map((exercise) => {
+                                const selectionIndex = selectedOrderedIds.indexOf(exercise.id);
+                                const isSelected = selectionIndex !== -1;
+                                return (
+                                    <ExerciseCard
+                                        key={exercise.id}
+                                        exercise={exercise}
+                                        isSelected={isSelected}
+                                        selectionIndex={selectionIndex}
+                                        toggleSelection={toggleSelection}
+                                        updateExercise={updateExercise}
+                                    />
+                                )
+                            })
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Footer / Start Button */}
@@ -478,6 +440,28 @@ export default function ProgramCustomizer({
                         <span>เวลาโดยประมาณ:</span>
                     </div>
                     <span className="text-white font-bold text-lg">{formatDuration(totalDurationSeconds)}</span>
+                </div>
+
+                {/* Mode Selection */}
+                <div className="grid grid-cols-2 gap-2 bg-black/40 p-1 rounded-xl border border-white/5">
+                    <button
+                        onClick={() => setMode("timer")}
+                        className={cn(
+                            "py-2 rounded-lg text-sm font-bold transition-all",
+                            mode === "timer" ? "bg-white text-black shadow-lg" : "text-gray-400 hover:text-white"
+                        )}
+                    >
+                        จับเวลา breath
+                    </button>
+                    <button
+                        onClick={() => setMode("manual")}
+                        className={cn(
+                            "py-2 rounded-lg text-sm font-bold transition-all",
+                            mode === "manual" ? "bg-white text-black shadow-lg" : "text-gray-400 hover:text-white"
+                        )}
+                    >
+                        นับเซ็ตเอง
+                    </button>
                 </div>
 
                 <button

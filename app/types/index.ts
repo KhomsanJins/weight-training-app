@@ -24,3 +24,5 @@ export type Program = {
   description: string;
   exercises: Exercise[];
 };
+
+export type WorkoutMode = 'timer' | 'manual';
