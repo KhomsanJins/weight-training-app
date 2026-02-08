@@ -51,7 +51,7 @@ export default function ProgramSelector({
     };
 
     return (
-        <div className="w-full max-w-5xl mx-auto pb-24">
+        <div className="w-full max-w-5xl mx-auto px-6 pb-24">
             <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400">
                     เลือกโปรแกรมออกกำลังกาย
