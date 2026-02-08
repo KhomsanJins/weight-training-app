@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Exercise, Program, BreathingPattern, ExerciseEquipment, WorkoutMode } from "../types";
-import { Check, Plus, Minus, Play, CheckCircle2, Circle, Clock, Wind, ArrowLeft, Dumbbell, Home, Building2, User, Weight, Armchair, Settings, Cable, GripVertical } from "lucide-react";
+import { Check, Plus, Minus, Play, CheckCircle2, Circle, Clock, Wind, ArrowLeft, Dumbbell, Home, Building2, User, Weight, Armchair, Settings, Cable, GripVertical, Save, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ProgramCustomizerProps {
@@ -16,6 +16,8 @@ interface ProgramCustomizerProps {
     setLocation: (loc: "home" | "gym") => void;
     selectedEquipment: Set<ExerciseEquipment | string>;
     setSelectedEquipment: (eq: Set<ExerciseEquipment | string>) => void;
+    onSave?: (name: string, exercises: Exercise[]) => void;
+    isSavedProgram?: boolean;
 }
 
 // Extended type to include source program info
@@ -171,40 +173,59 @@ export default function ProgramCustomizer({
     setLocation,
     selectedEquipment,
     setSelectedEquipment,
+    onSave,
+    isSavedProgram = false,
 }: ProgramCustomizerProps) {
     const [exercises, setExercises] = useState<ExtendedExercise[]>([]);
     const [selectedOrderedIds, setSelectedOrderedIds] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [mode, setMode] = useState<WorkoutMode>("timer");
+    const [showSaveModal, setShowSaveModal] = useState(false);
+    const [programName, setProgramName] = useState("");
+    const [isSuccess, setIsSuccess] = useState(false);
 
     // Initialize exercises and default selection
     useEffect(() => {
         // Merge exercises from all programs
         const allExercises: ExtendedExercise[] = [];
         let uniqueIdCounter = 0;
+        const initialSelectedIds: string[] = [];
 
         programs.forEach(program => {
             program.exercises.forEach(ex => {
                 // Create unique ID by combining program ID and counter
+                const uniqueId = `${program.id}-${ex.id}-${uniqueIdCounter++}`;
                 allExercises.push({
                     ...ex,
-                    id: `${program.id}-${ex.id}-${uniqueIdCounter++}`,
+                    id: uniqueId,
                     programId: program.id,
                     programName: program.name
                 });
+
+                // If it's a saved program, select all exercises by default
+                if (isSavedProgram) {
+                    initialSelectedIds.push(uniqueId);
+                }
             });
         });
 
-        // Sort alphabetically
-        allExercises.sort((a, b) => a.name.localeCompare(b.name));
+        // Sort alphabetically only if NOT a saved program
+        if (!isSavedProgram) {
+            allExercises.sort((a, b) => a.name.localeCompare(b.name));
+        }
 
         setExercises(allExercises);
 
-        // Initially select nothing
-        setSelectedOrderedIds([]);
-    }, [programs]);
+        // Initially select nothing unless it's a saved program
+        setSelectedOrderedIds(initialSelectedIds);
+    }, [programs, isSavedProgram]);
 
     const filteredExercises = useMemo(() => {
+        // If it's a saved program, just show all exercises without filtering
+        if (isSavedProgram) {
+            return exercises;
+        }
+
         const filtered = exercises.filter(ex => {
             // Filter by equipment
             const matchesEquipment = ex.equipment.some(eq => selectedEquipment.has(eq));
@@ -238,7 +259,7 @@ export default function ProgramCustomizer({
                 return a.name.localeCompare(b.name);
             }
         });
-    }, [exercises, selectedEquipment, searchQuery, selectedOrderedIds]);
+    }, [exercises, selectedEquipment, searchQuery, selectedOrderedIds, isSavedProgram]);
 
     const toggleSelection = (id: string) => {
         setSelectedOrderedIds(prev => {
@@ -306,6 +327,28 @@ export default function ProgramCustomizer({
         return `${minutes} นาที`;
     };
 
+    const handleSaveClick = () => {
+        setProgramName("");
+        setIsSuccess(false);
+        setShowSaveModal(true);
+    };
+
+    const confirmSave = () => {
+        if (!programName.trim() || !onSave) return;
+
+        // Get selected exercises
+        const selectedExercises = selectedOrderedIds
+            .map(id => exercises.find(e => e.id === id))
+            .filter((e): e is ExtendedExercise => e !== undefined);
+
+        onSave(programName, selectedExercises);
+        setIsSuccess(true);
+        setTimeout(() => {
+            setIsSuccess(false);
+            setShowSaveModal(false);
+        }, 3500);
+    };
+
     // Calculate effective selected count (filtered & selected)
     const effectiveSelectedCount = selectedOrderedIds.length;
 
@@ -319,91 +362,174 @@ export default function ProgramCustomizer({
                     <ArrowLeft size={20} />
                     <span className="font-bold">กลับ</span>
                 </button>
+
+                {onSave && !isSavedProgram && (
+                    <button
+                        onClick={handleSaveClick}
+                        disabled={effectiveSelectedCount === 0}
+                        className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors text-white"
+                    >
+                        <Save size={20} />
+                        <span className="font-bold">บันทึก Fav</span>
+                    </button>
+                )}
             </div>
+
+            {/* Save Modal */}
+            <AnimatePresence>
+                {showSaveModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-gray-900 border border-gray-800 w-full max-w-md p-6 rounded-2xl shadow-2xl relative overflow-hidden"
+                        >
+                            {/* Success Overlay */}
+                            <AnimatePresence>
+                                {isSuccess && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="absolute inset-0 z-50 bg-gray-900/95 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
+                                    >
+                                        <motion.div
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.4)]"
+                                        >
+                                            <Check size={32} className="text-white" strokeWidth={3} />
+                                        </motion.div>
+                                        <h3 className="text-xl font-bold text-white">บันทึกเรียบร้อย!</h3>
+                                        <p className="text-gray-400 text-sm mt-2">รายการที่ Fav จะไปแสดงในหน้าแรก</p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-white">ตั้งชื่อรายการ</h3>
+                                <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-white">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <input
+                                type="text"
+                                value={programName}
+                                onChange={(e) => setProgramName(e.target.value)}
+                                placeholder="เช่น วันเล่นขา, Full Body A..."
+                                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6"
+                                autoFocus
+                            />
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowSaveModal(false)}
+                                    className="flex-1 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold transition-all"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    onClick={confirmSave}
+                                    disabled={!programName.trim()}
+                                    className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold transition-all"
+                                >
+                                    บันทึก
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             <div className="p-4 space-y-4">
                 <div className="space-y-6">
-                    {/* Location & Equipment Filters */}
-                    <div className="bg-gray-900/40 backdrop-blur-md p-5 rounded-3xl border border-white/10 shadow-2xl">
+                    {/* Location & Equipment Filters - Hide if Saved Program */}
+                    {!isSavedProgram && (
+                        <div className="bg-gray-900/40 backdrop-blur-md p-5 rounded-3xl border border-white/10 shadow-2xl">
 
-                        <div className="flex items-center gap-2 mb-4 text-sm text-gray-400 font-medium px-1">
-                            <span className="uppercase tracking-wider text-[10px] font-bold">สถานที่ & อุปกรณ์</span>
+                            <div className="flex items-center gap-2 mb-4 text-sm text-gray-400 font-medium px-1">
+                                <span className="uppercase tracking-wider text-[10px] font-bold">สถานที่ & อุปกรณ์</span>
+                            </div>
+
+                            {/* Location Switch */}
+                            <div className="flex bg-black/40 border border-white/5 rounded-2xl p-1 mb-5 relative overflow-hidden">
+                                <button
+                                    onClick={() => setLocation("home")}
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all text-sm font-bold relative z-10",
+                                        location === "home"
+                                            ? "bg-linear-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-green-500/20"
+                                            : "text-gray-400 hover:text-white hover:bg-white/5"
+                                    )}
+                                >
+                                    <Home size={16} />
+                                    <span>ที่บ้าน (Home)</span>
+                                </button>
+                                <button
+                                    onClick={() => setLocation("gym")}
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all text-sm font-bold relative z-10",
+                                        location === "gym"
+                                            ? "bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20"
+                                            : "text-gray-400 hover:text-white hover:bg-white/5"
+                                    )}
+                                >
+                                    <Building2 size={16} />
+                                    <span>ยิม (Gym)</span>
+                                </button>
+
+                            </div>
+
+                            {/* Equipment Checkboxes */}
+                            <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide mask-linear-fade">
+                                {[
+                                    { id: "bodyweight", label: "น้ำหนักตัว", icon: <User size={14} /> },
+                                    { id: "dumbbell", label: "ดัมเบล", icon: <Dumbbell size={14} /> },
+                                    { id: "barbell", label: "บาร์เบล", icon: <Weight size={14} /> },
+                                    { id: "bench", label: "ม้านั่ง", icon: <Armchair size={14} /> },
+                                    { id: "machine", label: "เครื่อง", icon: <Settings size={14} /> },
+                                    { id: "cable", label: "เคเบิล", icon: <Cable size={14} /> }
+                                ].map((item) => {
+                                    const isSelected = selectedEquipment.has(item.id as ExerciseEquipment);
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => toggleEquipment(item.id as ExerciseEquipment)}
+                                            className={cn(
+                                                "shrink-0 flex items-center gap-2 p-1 rounded-xl text-xs font-bold border transition-all duration-300 relative overflow-hidden group text-left",
+                                                isSelected
+                                                    ? "bg-white border-white text-black shadow-lg shadow-white/20 scale-[0.98]"
+                                                    : "bg-gray-900/40 border-white/5 text-gray-500 hover:bg-gray-800/60 hover:border-white/10 hover:text-gray-300"
+                                            )}
+                                        >
+                                            <div className={cn(
+                                                "p-1.5 rounded-md transition-colors",
+                                                isSelected ? "bg-black/5 text-black" : "bg-black/40 text-gray-600 group-hover:text-gray-400"
+                                            )}>
+                                                {item.icon}
+                                            </div>
+                                            <span className="truncate">{item.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
+                    )}
 
-                        {/* Location Switch */}
-                        <div className="flex bg-black/40 border border-white/5 rounded-2xl p-1 mb-5 relative overflow-hidden">
-                            <button
-                                onClick={() => setLocation("home")}
-                                className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all text-sm font-bold relative z-10",
-                                    location === "home"
-                                        ? "bg-linear-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-green-500/20"
-                                        : "text-gray-400 hover:text-white hover:bg-white/5"
-                                )}
-                            >
-                                <Home size={16} />
-                                <span>ที่บ้าน (Home)</span>
-                            </button>
-                            <button
-                                onClick={() => setLocation("gym")}
-                                className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all text-sm font-bold relative z-10",
-                                    location === "gym"
-                                        ? "bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20"
-                                        : "text-gray-400 hover:text-white hover:bg-white/5"
-                                )}
-                            >
-                                <Building2 size={16} />
-                                <span>ยิม (Gym)</span>
-                            </button>
-
+                    {/* Search Bar - Hide if Saved Program */}
+                    {!isSavedProgram && (
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="ค้นหาท่าออกกำลังกาย..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-gray-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                            />
                         </div>
-
-                        {/* Equipment Checkboxes */}
-                        <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide mask-linear-fade">
-                            {[
-                                { id: "bodyweight", label: "น้ำหนักตัว", icon: <User size={14} /> },
-                                { id: "dumbbell", label: "ดัมเบล", icon: <Dumbbell size={14} /> },
-                                { id: "barbell", label: "บาร์เบล", icon: <Weight size={14} /> },
-                                { id: "bench", label: "ม้านั่ง", icon: <Armchair size={14} /> },
-                                { id: "machine", label: "เครื่อง", icon: <Settings size={14} /> },
-                                { id: "cable", label: "เคเบิล", icon: <Cable size={14} /> }
-                            ].map((item) => {
-                                const isSelected = selectedEquipment.has(item.id as ExerciseEquipment);
-                                return (
-                                    <button
-                                        key={item.id}
-                                        onClick={() => toggleEquipment(item.id as ExerciseEquipment)}
-                                        className={cn(
-                                            "shrink-0 flex items-center gap-2 p-1 rounded-xl text-xs font-bold border transition-all duration-300 relative overflow-hidden group text-left",
-                                            isSelected
-                                                ? "bg-white border-white text-black shadow-lg shadow-white/20 scale-[0.98]"
-                                                : "bg-gray-900/40 border-white/5 text-gray-500 hover:bg-gray-800/60 hover:border-white/10 hover:text-gray-300"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "p-1.5 rounded-md transition-colors",
-                                            isSelected ? "bg-black/5 text-black" : "bg-black/40 text-gray-600 group-hover:text-gray-400"
-                                        )}>
-                                            {item.icon}
-                                        </div>
-                                        <span className="truncate">{item.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Search Bar */}
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="ค้นหาท่าออกกำลังกาย..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-gray-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                        />
-                    </div>
+                    )}
 
                     {/* List */}
                     <div className="space-y-4">

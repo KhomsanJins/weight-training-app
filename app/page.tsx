@@ -22,6 +22,7 @@ const DEFAULT_BREATHING: BreathingPattern = {
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedPrograms, setSelectedPrograms] = useState<Program[]>([]);
+  const [savedPrograms, setSavedPrograms] = useState<Program[]>([]);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [activeProgram, setActiveProgram] = useState<Program | null>(null); // Program actually being played
   const [isWorkoutFinished, setIsWorkoutFinished] = useState(false);
@@ -47,6 +48,8 @@ export default function Home() {
         } else if (parsed.selectedProgram) {
           setSelectedPrograms([parsed.selectedProgram]);
         }
+
+        if (parsed.savedPrograms) setSavedPrograms(parsed.savedPrograms);
 
         if (parsed.isCustomizing) setIsCustomizing(parsed.isCustomizing);
 
@@ -75,10 +78,11 @@ export default function Home() {
       currentExerciseIndex,
       breathingPattern,
       location,
-      selectedEquipment: Array.from(selectedEquipment)
+      selectedEquipment: Array.from(selectedEquipment),
+      savedPrograms
     };
     localStorage.setItem("flowlift_state", JSON.stringify(stateToSave));
-  }, [selectedPrograms, isCustomizing, activeProgram, activeMode, currentExerciseIndex, breathingPattern, location, selectedEquipment, isLoaded]);
+  }, [selectedPrograms, isCustomizing, activeProgram, activeMode, currentExerciseIndex, breathingPattern, location, selectedEquipment, savedPrograms, isLoaded]);
 
   const handleProgramToggle = (program: Program) => {
     setSelectedPrograms(prev => {
@@ -143,6 +147,21 @@ export default function Home() {
     setIsCustomizing(false);
   }
 
+  const handleSaveProgram = (name: string, exercises: any[]) => {
+    const newProgram: Program = {
+      id: `custom-${Date.now()}`,
+      name: name,
+      description: "Custom saved program",
+      exercises: exercises
+    };
+    setSavedPrograms(prev => [...prev, newProgram]);
+  };
+
+  const handleDeleteProgram = (programId: string) => {
+    setSavedPrograms(prev => prev.filter(p => p.id !== programId));
+    setSelectedPrograms(prev => prev.filter(p => p.id !== programId));
+  };
+
   if (!isLoaded) {
     return (
       <Layout>
@@ -204,9 +223,11 @@ export default function Home() {
           >
             <ProgramSelector
               programs={PROGRAMS}
+              savedPrograms={savedPrograms}
               selectedPrograms={selectedPrograms}
               onToggle={handleProgramToggle}
               onNext={handleStartCustomization}
+              onDelete={handleDeleteProgram}
             />
           </motion.div>
         ) : isCustomizing && !activeProgram ? (
@@ -226,6 +247,8 @@ export default function Home() {
               setLocation={setLocation}
               selectedEquipment={selectedEquipment}
               setSelectedEquipment={setSelectedEquipment}
+              onSave={handleSaveProgram}
+              isSavedProgram={selectedPrograms.length === 1 && savedPrograms.some(p => p.id === selectedPrograms[0].id)}
             />
           </motion.div>
         ) : activeProgram ? (
@@ -263,19 +286,19 @@ export default function Home() {
                   exit={{ opacity: 0 }}
                   className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
                 >
-                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md relative">
-                    <button
-                      onClick={() => setShowSettings(false)}
-                      className="absolute top-4 right-4 text-gray-400 hover:text-white"
-                    >
-                      <X size={24} />
-                    </button>
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md relative flex flex-col gap-4">
                     <div className="mt-2">
                       <BreathingSettings
                         pattern={breathingPattern}
                         onChange={setBreathingPattern}
                       />
                     </div>
+                    <button
+                      onClick={() => setShowSettings(false)}
+                      className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <span>ตกลง</span>
+                    </button>
                   </div>
                 </motion.div>
               )}

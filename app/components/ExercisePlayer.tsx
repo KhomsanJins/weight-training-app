@@ -176,6 +176,39 @@ export default function ExercisePlayer({
         }
     };
 
+    const getMovementHint = () => {
+        if (mode === "manual") return "";
+        switch (phase) {
+            case "inhale":
+                return "ผ่อนแรง (ลง)";
+            case "holdIn":
+                return "เกร็งหน้าท้อง";
+            case "exhale":
+                return "ออกแรง (ขึ้น)";
+            case "holdOut":
+                return "ค้างท่าไว้";
+            case "rest":
+                return "ผ่อนคลาย";
+        }
+    };
+
+    const getPhaseColor = () => {
+        switch (phase) {
+            case "inhale":
+                return "from-blue-500 to-cyan-400";
+            case "holdIn":
+                return "from-blue-600 to-indigo-600";
+            case "exhale":
+                return "from-red-500 to-orange-500";
+            case "holdOut":
+                return "from-red-600 to-rose-600";
+            case "rest":
+                return "from-green-500 to-emerald-600";
+            default:
+                return "from-blue-500 to-purple-600";
+        }
+    };
+
     const glowColor =
         phase === "inhale"
             ? "shadow-[0_0_50px_rgba(59,130,246,0.6)]" // Blue
@@ -267,9 +300,9 @@ export default function ExercisePlayer({
                             animate={{
                                 scale:
                                     phase === "inhale" || phase === "holdIn"
-                                        ? 1.5
+                                        ? 1.0
                                         : phase === "exhale" || phase === "holdOut"
-                                            ? 1.0
+                                            ? 1.5
                                             : phase === "rest" ? 1.2 : 1,
                                 opacity: phase === "holdIn" || phase === "holdOut" ? 0.8 : 1,
                             }}
@@ -283,8 +316,8 @@ export default function ExercisePlayer({
                                 ease: "easeInOut",
                             }}
                             className={cn(
-                                "absolute w-40 h-40 rounded-full bg-linear-to-br from-blue-500 to-purple-600 transition-shadow duration-500",
-                                phase === "rest" ? "from-green-500 to-emerald-600" : "",
+                                "absolute w-40 h-40 rounded-full bg-linear-to-br transition-[--tw-gradient-from,--tw-gradient-to,box-shadow] duration-1000",
+                                getPhaseColor(),
                                 glowColor
                             )}
                         />
@@ -297,6 +330,17 @@ export default function ExercisePlayer({
                             >
                                 {countdown !== null ? "เตรียมตัว..." : isActive ? getInstruction() : "พร้อมไหม?"}
                             </motion.div>
+
+                            {/* Movement Hint */}
+                            {isActive && countdown === null && phase !== "rest" && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="text-lg text-blue-200 font-medium mt-1"
+                                >
+                                    ({getMovementHint()})
+                                </motion.div>
+                            )}
 
                             {countdown !== null ? (
                                 <div className="text-6xl font-black text-white mt-2 animate-pulse">
@@ -368,7 +412,7 @@ export default function ExercisePlayer({
                 >
                     <ChevronRight size={24} />
                 </button>
-            </div>
-        </div >
+            </div >
+        </div>
     );
 }

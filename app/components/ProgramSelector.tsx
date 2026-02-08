@@ -1,15 +1,18 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Program, Exercise } from "../types"; // Added Exercise
 import { cn } from "@/lib/utils";
-import { Dumbbell, Activity, Flame, Zap, Trophy, Clock, List, ArrowRight, BicepsFlexed } from "lucide-react"; // Import icons
+import { Dumbbell, Activity, Flame, Zap, Trophy, Clock, List, ArrowRight, BicepsFlexed, Trash2, Star } from "lucide-react"; // Import icons
+import { useState } from "react";
 
 interface ProgramSelectorProps {
     programs: Program[];
+    savedPrograms?: Program[];
     selectedPrograms: Program[];
     onToggle: (program: Program) => void;
     onNext: () => void;
+    onDelete?: (id: string) => void;
 }
 
 const getProgramIcon = (id: string) => {
@@ -36,9 +39,11 @@ const getGradient = (id: string) => {
 
 export default function ProgramSelector({
     programs,
+    savedPrograms = [],
     selectedPrograms,
     onToggle,
     onNext,
+    onDelete,
 }: ProgramSelectorProps) {
 
     // Simple calculation assuming standard breathing (wait for passing breathingPattern if precise needed, but approx is fine here)
@@ -50,6 +55,9 @@ export default function ProgramSelector({
         return Math.round(totalSeconds / 60);
     };
 
+    // State for delete modal
+    const [programToDelete, setProgramToDelete] = useState<string | null>(null);
+
     return (
         <div className="w-full max-w-5xl mx-auto px-6 pb-24">
             <div className="text-center mb-8">
@@ -57,6 +65,140 @@ export default function ProgramSelector({
                     เลือกโปรแกรมออกกำลังกาย
                 </h2>
                 <p className="text-gray-400">เลือกได้มากกว่า 1 โปรแกรมเพื่อผสมผสานการฝึก</p>
+            </div>
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {programToDelete && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-gray-900 border border-gray-800 w-full max-w-md p-6 rounded-2xl shadow-2xl"
+                        >
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Trash2 size={32} className="text-red-500" />
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-2">ยืนยันการลบ?</h3>
+                                <p className="text-gray-400">
+                                    คุณต้องการลบโปรแกรมนี้ใช่ไหม? <br />
+                                    การกระทำนี้ไม่สามารถเรียกคืนได้
+                                </p>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setProgramToDelete(null)}
+                                    className="flex-1 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold transition-all"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (onDelete && programToDelete) {
+                                            onDelete(programToDelete);
+                                            setProgramToDelete(null);
+                                        }
+                                    }}
+                                    className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold transition-all"
+                                >
+                                    ลบเลย
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Saved Programs Section */}
+            {savedPrograms.length > 0 && (
+                <div className="mb-12">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Star className="text-yellow-400" fill="currentColor" size={24} />
+                        <h3 className="text-2xl font-bold text-white">รายการของฉัน</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {savedPrograms.map((program) => {
+                            const isSelected = selectedPrograms.some(p => p.id === program.id);
+                            const duration = calculateApproxDuration(program.exercises);
+
+                            return (
+                                <motion.div
+                                    key={program.id}
+                                    whileHover={{ scale: 1.02, y: -4 }}
+                                    className="relative group"
+                                >
+                                    <button
+                                        onClick={() => onToggle(program)}
+                                        className={cn(
+                                            "w-full h-full relative p-6 rounded-2xl text-left transition-all border-2 backdrop-blur-xl flex flex-col bg-linear-to-br from-gray-800 to-gray-900 border-gray-700",
+                                            isSelected
+                                                ? "ring-2 ring-white ring-offset-2 ring-offset-black shadow-xl scale-[1.02] border-transparent"
+                                                : "opacity-80 hover:opacity-100 shadow-lg"
+                                        )}
+                                    >
+                                        <div className="flex items-start justify-between mb-4 w-full">
+                                            <div className="p-3 rounded-xl bg-yellow-500/20 text-yellow-500 border border-yellow-500/20">
+                                                <Star size={24} />
+                                            </div>
+                                            {isSelected && (
+                                                <motion.div
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    className="bg-blue-500 text-white shadow-lg shadow-blue-500/40 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
+                                                >
+                                                    <ArrowRight size={12} />
+                                                    Selected
+                                                </motion.div>
+                                            )}
+                                        </div>
+
+                                        <div className="mb-4 grow">
+                                            <h3 className="text-xl font-bold text-white mb-1 group-hover:text-blue-300 transition-colors">
+                                                {program.name}
+                                            </h3>
+                                            <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">
+                                                {program.description}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex items-center gap-4 text-xs font-mono text-gray-300 bg-black/20 p-3 rounded-lg border border-white/5 mb-4 w-full">
+                                            <div className="flex items-center gap-1.5">
+                                                <Clock size={14} className="text-blue-400" />
+                                                <span>~{duration} นาที</span>
+                                            </div>
+                                            <div className="w-px h-3 bg-white/10" />
+                                            <div className="flex items-center gap-1.5">
+                                                <List size={14} className="text-purple-400" />
+                                                <span>{program.exercises.length} ท่า</span>
+                                            </div>
+                                        </div>
+                                    </button>
+
+                                    {onDelete && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setProgramToDelete(program.id);
+                                            }}
+                                            className="absolute top-4 right-4 p-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all z-10"
+                                            title="Delete Program"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    )}
+                                </motion.div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+
+            <div className="flex items-center gap-2 mb-4">
+                <Trophy className="text-blue-400" size={24} />
+                <h3 className="text-2xl font-bold text-white">โปรแกรมแนะนำ</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
