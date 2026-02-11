@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Program, Exercise } from "../types"; // Added Exercise
 import { cn } from "@/lib/utils";
-import { Dumbbell, Activity, Flame, Zap, Trophy, Clock, List, ArrowRight, BicepsFlexed, Trash2, Star } from "lucide-react"; // Import icons
+import { Dumbbell, Activity, Flame, Zap, Trophy, Clock, List, ArrowRight, BicepsFlexed, Trash2, Star, Target } from "lucide-react"; // Import icons
 import { useState } from "react";
 
 interface ProgramSelectorProps {
@@ -20,6 +20,7 @@ const getProgramIcon = (id: string) => {
         case "push": return <Dumbbell className="text-blue-400" size={24} />;
         case "pull": return <BicepsFlexed className="text-purple-400" size={24} />;
         case "legs": return <Flame className="text-orange-400" size={24} />;
+        case "core": return <Target className="text-indigo-400" size={24} />;
         case "upper": return <Zap className="text-yellow-400" size={24} />;
         case "lower": return <Activity className="text-green-400" size={24} />;
         default: return <Trophy className="text-gray-400" size={24} />;
@@ -31,6 +32,7 @@ const getGradient = (id: string) => {
         case "push": return "from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 border-blue-500/30";
         case "pull": return "from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border-purple-500/30";
         case "legs": return "from-orange-500/20 to-red-500/20 hover:from-orange-500/30 hover:to-red-500/30 border-orange-500/30";
+        case "core": return "from-indigo-500/20 to-violet-500/20 hover:from-indigo-500/30 hover:to-violet-500/30 border-indigo-500/30";
         case "upper": return "from-yellow-500/20 to-amber-500/20 hover:from-yellow-500/30 hover:to-amber-500/30 border-yellow-500/30";
         case "lower": return "from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 border-green-500/30";
         default: return "from-gray-800 to-gray-800 border-gray-700";
